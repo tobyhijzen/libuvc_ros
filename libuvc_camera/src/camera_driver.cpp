@@ -126,9 +126,9 @@ void CameraDriver::ReconfigureCallback(UVCCameraConfig &new_config, uint32_t lev
     PARAM_INT(exposure_absolute, exposure_abs, new_config.exposure_absolute * 10000);
     PARAM_INT(auto_focus, focus_auto, new_config.auto_focus ? 1 : 0);
     PARAM_INT(focus_absolute, focus_abs, new_config.focus_absolute);
-    PARAM_INT(gain, gain, new_config.gain);
-    PARAM_INT(iris_absolute, iris_abs, new_config.iris_absolute);
-    PARAM_INT(brightness, brightness, new_config.brightness);
+    //PARAM_INT(gain, gain, new_config.gain);
+    //PARAM_INT(iris_absolute, iris_abs, new_config.iris_absolute);
+    //PARAM_INT(brightness, brightness, new_config.brightness);
     
 
     if (new_config.pan_absolute != config_.pan_absolute || new_config.tilt_absolute != config_.tilt_absolute) {
@@ -189,7 +189,19 @@ void CameraDriver::ImageCallback(uvc_frame_t *frame) {
     }
     image->encoding = "bgr8";
     memcpy(&(image->data[0]), rgb_frame_->data, rgb_frame_->data_bytes);
-  } else {
+  }
+#ifdef LIBUVC_HAS_JPEG
+  else if (frame->frame_format == UVC_FRAME_FORMAT_MJPEG) {
+    uvc_error_t conv_ret = uvc_mjpeg2rgb(frame, rgb_frame_);
+    if (conv_ret != UVC_SUCCESS) {
+      uvc_perror(conv_ret, "Couldn't convert frame from MJPEG to RGB");
+      return;
+    }
+    image->encoding = "rgb8";
+    memcpy(&(image->data[0]), rgb_frame_->data, rgb_frame_->data_bytes);
+  }
+#endif
+  else {
     uvc_error_t conv_ret = uvc_any2bgr(frame, rgb_frame_);
     if (conv_ret != UVC_SUCCESS) {
       uvc_perror(conv_ret, "Couldn't convert frame to RGB");
