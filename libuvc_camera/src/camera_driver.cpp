@@ -126,9 +126,9 @@ void CameraDriver::ReconfigureCallback(UVCCameraConfig &new_config, uint32_t lev
     PARAM_INT(exposure_absolute, exposure_abs, new_config.exposure_absolute * 10000);
     PARAM_INT(auto_focus, focus_auto, new_config.auto_focus ? 1 : 0);
     PARAM_INT(focus_absolute, focus_abs, new_config.focus_absolute);
-    //PARAM_INT(gain, gain, new_config.gain);
-    //PARAM_INT(iris_absolute, iris_abs, new_config.iris_absolute);
-    //PARAM_INT(brightness, brightness, new_config.brightness);
+    PARAM_INT(gain, gain, new_config.gain);
+    PARAM_INT(iris_absolute, iris_abs, new_config.iris_absolute);
+    PARAM_INT(brightness, brightness, new_config.brightness);
     
 
     if (new_config.pan_absolute != config_.pan_absolute || new_config.tilt_absolute != config_.tilt_absolute) {
