@@ -1,0 +1,15 @@
+<!--
+
+GIVE ME HTML HIGHLIGHTING
+ 
+-->
+<launch>
+  <node name="libuvc_camera" type="camera_node" pkg="libuvc_camera" output="screen">
+    <param name="vendor" value="0x05a3"/>
+    <param name="frame_rate" value="30.0"/>
+    <param name="width" value="640"/>
+    <param name="height" value="480"/>
+    <param name="video_mode" value="yuyv"/>
+    <param name="auto_exposure" value="0"/>
+  </node>
+</launch>
