@@ -118,6 +118,9 @@ void CameraDriver::ReconfigureCallback(UVCCameraConfig &new_config, uint32_t lev
         ROS_WARN("Unable to set " #name " to %d", val);                 \
         new_config.name = config_.name;                                 \
       }                                                                 \
+      else {                                                            \
+        ROS_INFO("Set " #name " to %d", val);                           \
+      }                                                                 \
     }
 
     PARAM_INT(scanning_mode, scanning_mode, new_config.scanning_mode);
@@ -162,10 +165,23 @@ void CameraDriver::ImageCallback(uvc_frame_t *frame) {
 
   boost::recursive_mutex::scoped_lock(mutex_);
 
+  if (frame->data == NULL)
+  {
+    ROS_ERROR("Got NULL");
+    return;
+  }
+
   assert(state_ == kRunning);
   assert(rgb_frame_);
 
   sensor_msgs::Image::Ptr image(new sensor_msgs::Image());
+
+  if (config_.width == 0 || config_.height == 0)
+  {
+    ROS_WARN("width or height config not set properly, skipping image");
+    return;
+  }
+
   image->width = config_.width;
   image->height = config_.height;
   image->step = image->width * 3;
@@ -210,7 +226,6 @@ void CameraDriver::ImageCallback(uvc_frame_t *frame) {
     image->encoding = "bgr8";
     memcpy(&(image->data[0]), rgb_frame_->data, rgb_frame_->data_bytes);
   }
-
 
   sensor_msgs::CameraInfo::Ptr cinfo(
     new sensor_msgs::CameraInfo(cinfo_manager_.getCameraInfo()));
