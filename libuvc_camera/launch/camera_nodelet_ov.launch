@@ -4,7 +4,10 @@ GIVE ME HTML HIGHLIGHTING
  
 -->
 <launch>
-  <node name="libuvc_camera" type="camera_node" pkg="libuvc_camera" output="screen">
+  <node pkg="nodelet" type="nodelet" name="camera_nodelet_manager"  args="manager"/>
+
+  <node pkg="nodelet" type="nodelet" name="CameraOV"
+        args="load libuvc_camera/driver camera_nodelet_manager">
     <param name="vendor" value="0x05a3"/>
     <param name="frame_rate" value="120.1"/>
     <param name="width" value="640"/>
