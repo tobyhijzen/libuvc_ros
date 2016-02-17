@@ -68,9 +68,11 @@ private:
   image_transport::ImageTransport it_;
   image_transport::CameraPublisher cam_pub_;
 
-  dynamic_reconfigure::Server<UVCCameraConfig> config_server_;
+  dynamic_reconfigure::Server<UVCCameraConfig>* config_server_;
+  dynamic_reconfigure::Server<UVCCameraConfig>::CallbackType dynamic_reconfigure_cb_;
   UVCCameraConfig config_;
   bool config_changed_;
+  bool creation_;
 
   camera_info_manager::CameraInfoManager cinfo_manager_;
 };

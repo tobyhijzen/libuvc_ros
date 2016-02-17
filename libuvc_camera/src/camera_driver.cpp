@@ -47,9 +47,11 @@ CameraDriver::CameraDriver(ros::NodeHandle nh, ros::NodeHandle priv_nh)
     state_(kInitial),
     ctx_(NULL), dev_(NULL), devh_(NULL), rgb_frame_(NULL),
     it_(nh_),
-    config_server_(mutex_, priv_nh_),
+    creation_(true),
     config_changed_(false),
     cinfo_manager_(nh) {
+  config_server_ = new dynamic_reconfigure::Server<UVCCameraConfig>(mutex_, priv_nh_);
+  config_server_->setCallback(boost::bind(&CameraDriver::ReconfigureCallback, this, _1, _2));
   cam_pub_ = it_.advertiseCamera("image_raw", 1, false);
 }
 
@@ -74,8 +76,9 @@ bool CameraDriver::Start() {
   }
 
   state_ = kStopped;
-
-  config_server_.setCallback(boost::bind(&CameraDriver::ReconfigureCallback, this, _1, _2));
+  
+  creation_ = false;
+  ReconfigureCallback(config_, 0);
 
   return state_ == kRunning;
 }
@@ -97,9 +100,13 @@ void CameraDriver::Stop() {
 }
 
 void CameraDriver::ReconfigureCallback(UVCCameraConfig &new_config, uint32_t level) {
+  if (creation_)
+  {
+    ROS_INFO("Setting config");
+    config_ = new_config;
+    return;
+  }
   boost::recursive_mutex::scoped_lock(mutex_);
-
-  config_ = new_config;
 
   if ((level & kReconfigureClose) == kReconfigureClose) {
     if (state_ == kRunning)
@@ -156,6 +163,7 @@ void CameraDriver::ReconfigureCallback(UVCCameraConfig &new_config, uint32_t lev
     // TODO: white_balance_temperature
     // TODO: white_balance_BU
     // TODO: white_balance_RV
+    config_ = new_config;
   }
 }
 
@@ -185,7 +193,7 @@ void CameraDriver::ImageCallback(uvc_frame_t *frame) {
   image->width =  (int) config_.width;
   image->height = (int) config_.height;
   image->step = image->width * 3;
-  if (image->step*image->height > 921600) {
+  if (image->step*image->height > 1920*1080*3) {
     ROS_ERROR_ONCE("resize to: %d cannot be done memory requested suspiciously large",image->step*image->height);
     return;
   }
@@ -240,7 +248,7 @@ void CameraDriver::ImageCallback(uvc_frame_t *frame) {
   cam_pub_.publish(image, cinfo);
 
   if (config_changed_) {
-    config_server_.updateConfig(config_);
+    config_server_->updateConfig(config_);
     config_changed_ = false;
   }
 }
