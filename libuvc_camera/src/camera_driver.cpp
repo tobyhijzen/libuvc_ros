@@ -99,6 +99,8 @@ void CameraDriver::Stop() {
 void CameraDriver::ReconfigureCallback(UVCCameraConfig &new_config, uint32_t level) {
   boost::recursive_mutex::scoped_lock(mutex_);
 
+  config_ = new_config;
+
   if ((level & kReconfigureClose) == kReconfigureClose) {
     if (state_ == kRunning)
       CloseCamera();
@@ -155,8 +157,6 @@ void CameraDriver::ReconfigureCallback(UVCCameraConfig &new_config, uint32_t lev
     // TODO: white_balance_BU
     // TODO: white_balance_RV
   }
-
-  config_ = new_config;
 }
 
 void CameraDriver::ImageCallback(uvc_frame_t *frame) {
@@ -178,13 +178,17 @@ void CameraDriver::ImageCallback(uvc_frame_t *frame) {
 
   if (config_.width == 0 || config_.height == 0)
   {
-    ROS_WARN("width or height config not set properly, skipping image");
+    ROS_WARN_THROTTLE(10,"width or height config not set properly, skipping images");
     return;
   }
 
-  image->width = config_.width;
-  image->height = config_.height;
+  image->width =  (int) config_.width;
+  image->height = (int) config_.height;
   image->step = image->width * 3;
+  if (image->step*image->height > 921600) {
+    ROS_ERROR_ONCE("resize to: %d cannot be done memory requested suspiciously large",image->step*image->height);
+    return;
+  }
   image->data.resize(image->step * image->height);
 
   if (frame->frame_format == UVC_FRAME_FORMAT_BGR){
@@ -226,10 +230,8 @@ void CameraDriver::ImageCallback(uvc_frame_t *frame) {
     image->encoding = "bgr8";
     memcpy(&(image->data[0]), rgb_frame_->data, rgb_frame_->data_bytes);
   }
-
   sensor_msgs::CameraInfo::Ptr cinfo(
     new sensor_msgs::CameraInfo(cinfo_manager_.getCameraInfo()));
-
   image->header.frame_id = config_.frame_id;
   image->header.stamp = timestamp;
   cinfo->header.frame_id = config_.frame_id;

@@ -7,12 +7,13 @@ GIVE ME HTML HIGHLIGHTING
   <node pkg="nodelet" type="nodelet" name="camera_nodelet_manager"  args="manager"/>
 
   <node pkg="nodelet" type="nodelet" name="CameraOV"
-        args="load libuvc_camera/driver camera_nodelet_manager">
+        args="load libuvc_camera/driver camera_nodelet_manager"  output="screen">
     <param name="vendor" value="0x05a3"/>
     <param name="frame_rate" value="120.1"/>
     <param name="width" value="640"/>
     <param name="height" value="480"/>
     <param name="video_mode" value="mjpeg"/>
     <param name="auto_exposure" value="0"/>
+    <param name="exposure_absolute" value="0.001"/>
   </node>
 </launch>
