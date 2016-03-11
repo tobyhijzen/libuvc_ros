@@ -71,7 +71,8 @@ bool CameraDriver::Start() {
   err = uvc_init(&ctx_, NULL);
 
   if (err != UVC_SUCCESS) {
-    uvc_perror(err, "ERROR: uvc_init");
+    const char* error_msg = uvc_strerror(err);
+    ROS_WARN("ERROR: uvc_init: %s",error_msg);
     return false;
   }
 
@@ -102,7 +103,7 @@ void CameraDriver::Stop() {
 void CameraDriver::ReconfigureCallback(UVCCameraConfig &new_config, uint32_t level) {
   if (creation_)
   {
-    ROS_INFO("Setting config");
+    ROS_DEBUG("Setting config");
     config_ = new_config;
     return;
   }
@@ -175,7 +176,7 @@ void CameraDriver::ImageCallback(uvc_frame_t *frame) {
 
   if (frame->data == NULL)
   {
-    ROS_ERROR("Got NULL");
+    ROS_WARN("Got NULL");
     return;
   }
 
@@ -194,7 +195,7 @@ void CameraDriver::ImageCallback(uvc_frame_t *frame) {
   image->height = (int) config_.height;
   image->step = image->width * 3;
   if (image->step*image->height > 1920*1080*3) {
-    ROS_ERROR_ONCE("resize to: %d cannot be done memory requested suspiciously large",image->step*image->height);
+    ROS_WARN_ONCE("resize to: %d cannot be done memory requested suspiciously large",image->step*image->height);
     return;
   }
   image->data.resize(image->step * image->height);
@@ -212,7 +213,8 @@ void CameraDriver::ImageCallback(uvc_frame_t *frame) {
     // FIXME: uvc_any2bgr does not work on "yuyv" format, so use uvc_yuyv2bgr directly.
     uvc_error_t conv_ret = uvc_yuyv2bgr(frame, rgb_frame_);
     if (conv_ret != UVC_SUCCESS) {
-      uvc_perror(conv_ret, "Couldn't convert frame to RGB");
+      const char* error_msg = uvc_strerror(conv_ret);
+      ROS_WARN("Couldn't convert frame to RGB: %s",error_msg);
       return;
     }
     image->encoding = "bgr8";
@@ -222,7 +224,8 @@ void CameraDriver::ImageCallback(uvc_frame_t *frame) {
   else if (frame->frame_format == UVC_FRAME_FORMAT_MJPEG) {
     uvc_error_t conv_ret = uvc_mjpeg2rgb(frame, rgb_frame_);
     if (conv_ret != UVC_SUCCESS) {
-      uvc_perror(conv_ret, "Couldn't convert frame from MJPEG to RGB");
+      const char* error_msg = uvc_strerror(conv_ret);
+      ROS_WARN("Couldn't convert frame from MJPEG to RGB: %s",error_msg);
       return;
     }
     image->encoding = "rgb8";
@@ -232,7 +235,8 @@ void CameraDriver::ImageCallback(uvc_frame_t *frame) {
   else {
     uvc_error_t conv_ret = uvc_any2bgr(frame, rgb_frame_);
     if (conv_ret != UVC_SUCCESS) {
-      uvc_perror(conv_ret, "Couldn't convert frame to RGB");
+      const char* error_msg = uvc_strerror(conv_ret);
+      ROS_WARN("Couldn't convert frame to RGB: %s",error_msg);
       return;
     }
     image->encoding = "bgr8";
@@ -267,7 +271,7 @@ void CameraDriver::AutoControlsCallback(
   void *data, size_t data_len) {
   boost::recursive_mutex::scoped_lock(mutex_);
 
-  printf("Controls callback. class: %d, event: %d, selector: %d, attr: %d, data_len: %u\n",
+  ROS_DEBUG("Controls callback. class: %d, event: %d, selector: %d, attr: %d, data_len: %u\n",
          status_class, event, selector, status_attribute, data_len);
 
   if (status_attribute == UVC_STATUS_ATTRIBUTE_VALUE_CHANGE) {
@@ -332,8 +336,7 @@ enum uvc_frame_format CameraDriver::GetVideoMode(std::string vmode){
   } else if (vmode == "gray8") {
     return UVC_COLOR_FORMAT_GRAY8;
   } else {
-    ROS_ERROR_STREAM("Invalid Video Mode: " << vmode);
-    ROS_WARN_STREAM("Continue using video mode: uncompressed");
+    ROS_WARN("Invalid Video Mode: %s, using video mode: uncompressed", vmode.c_str());
     return UVC_COLOR_FORMAT_UNCOMPRESSED;
   }
 };
@@ -356,7 +359,8 @@ void CameraDriver::OpenCamera(UVCCameraConfig &new_config) {
   // TODO: index
 
   if (find_err != UVC_SUCCESS) {
-    uvc_perror(find_err, "uvc_find_device");
+    const char* error_msg = uvc_strerror(find_err);
+    ROS_WARN("uvc_find_device: %s",error_msg);
     return;
   }
 
@@ -366,20 +370,20 @@ void CameraDriver::OpenCamera(UVCCameraConfig &new_config) {
     switch (open_err) {
     case UVC_ERROR_ACCESS:
 #ifdef __linux__
-      ROS_ERROR("Permission denied opening /dev/bus/usb/%03d/%03d",
+      ROS_WARN("Permission denied opening /dev/bus/usb/%03d/%03d did you set udev rules with permissions?",
                 uvc_get_bus_number(dev_), uvc_get_device_address(dev_));
 #else
-      ROS_ERROR("Permission denied opening device %d on bus %d",
+      ROS_WARN("Permission denied opening device %d on bus %d",
                 uvc_get_device_address(dev_), uvc_get_bus_number(dev_));
 #endif
       break;
     default:
 #ifdef __linux__
-      ROS_ERROR("Can't open /dev/bus/usb/%03d/%03d: %s (%d)",
+      ROS_WARN("Can't open /dev/bus/usb/%03d/%03d: %s (%d) did you set udev rules with permissions?",
                 uvc_get_bus_number(dev_), uvc_get_device_address(dev_),
                 uvc_strerror(open_err), open_err);
 #else
-      ROS_ERROR("Can't open device %d on bus %d: %s (%d)",
+      ROS_WARN("Can't open device %d on bus %d: %s (%d)",
                 uvc_get_device_address(dev_), uvc_get_bus_number(dev_),
                 uvc_strerror(open_err), open_err);
 #endif
@@ -400,10 +404,11 @@ void CameraDriver::OpenCamera(UVCCameraConfig &new_config) {
     new_config.frame_rate);
 
   if (mode_err != UVC_SUCCESS) {
-    uvc_perror(mode_err, "uvc_get_stream_ctrl_format_size");
+    const char* error_msg = uvc_strerror(mode_err);
+    ROS_WARN("uvc_get_stream_ctrl_format_size: %s",error_msg);
     uvc_close(devh_);
     uvc_unref_device(dev_);
-    ROS_ERROR("check video_mode/width/height/frame_rate are available");
+    ROS_WARN("check video_mode/width/height/frame_rate are available");
     uvc_print_diag(devh_, NULL);
     return;
   }
@@ -411,7 +416,8 @@ void CameraDriver::OpenCamera(UVCCameraConfig &new_config) {
   uvc_error_t stream_err = uvc_start_iso_streaming(devh_, &ctrl, &CameraDriver::ImageCallbackAdapter, this);
 
   if (stream_err != UVC_SUCCESS) {
-    uvc_perror(stream_err, "uvc_start_iso_streaming");
+    const char* error_msg = uvc_strerror(stream_err);
+    ROS_WARN("uvc_start_iso_streaming: %s",error_msg);
     uvc_close(devh_);
     uvc_unref_device(dev_);
     return;
